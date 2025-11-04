@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:bookswap_app/config/app_theme.dart';
 import 'package:bookswap_app/models/book.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class BookCard extends StatelessWidget {
   final Book book;
@@ -82,26 +83,46 @@ class BookCard extends StatelessWidget {
   }
 
   Widget _buildBookCover() {
-    return Container(
-      width: 80,
-      height: 100,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryNavy,
-        borderRadius: BorderRadius.circular(8),
-        image: book.imageUrl != null
-            ? DecorationImage(
-                image: NetworkImage(book.imageUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
-      ),
-      child: book.imageUrl == null
-          ? const Icon(
-              Icons.menu_book,
-              color: AppTheme.accentGold,
-              size: 40,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: book.imageUrl != null
+          ? CachedNetworkImage(
+              imageUrl: book.imageUrl!,
+              width: 80,
+              height: 100,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                width: 80,
+                height: 100,
+                color: Colors.grey[300],
+                child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              errorWidget: (context, url, error) => Container(
+                width: 80,
+                height: 100,
+                color: AppTheme.primaryNavy,
+                child: const Icon(
+                  Icons.menu_book,
+                  color: AppTheme.accentGold,
+                  size: 40,
+                ),
+              ),
             )
-          : null,
+          : Container(
+              width: 80,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryNavy,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.menu_book,
+                color: AppTheme.accentGold,
+                size: 40,
+              ),
+            ),
     );
   }
 
