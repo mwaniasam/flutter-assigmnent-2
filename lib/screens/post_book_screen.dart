@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bookswap_app/config/app_theme.dart';
 import 'package:bookswap_app/models/book.dart';
 import 'package:bookswap_app/widgets/custom_text_field.dart';
 import 'package:bookswap_app/screens/book_search_screen.dart';
 import 'package:bookswap_app/services/google_books_service.dart';
+import 'package:bookswap_app/services/firestore_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class PostBookScreen extends StatefulWidget {
@@ -16,9 +18,11 @@ class PostBookScreen extends StatefulWidget {
 class _PostBookScreenState extends State<PostBookScreen> {
   final _formKey = GlobalKey<FormState>();
   final _swapForController = TextEditingController();
+  final FirestoreService _firestoreService = FirestoreService();
   
   BookCondition _selectedCondition = BookCondition.good;
   BookSearchResult? _selectedBook;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -102,8 +106,17 @@ class _PostBookScreenState extends State<PostBookScreen> {
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _handleSubmit,
-                  child: const Text('Post Book'),
+                  onPressed: _isSubmitting ? null : _handleSubmit,
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryNavy),
+                          ),
+                        )
+                      : const Text('Post Book'),
                 ),
               ),
             ],
@@ -249,7 +262,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
     );
   }
 
-  void _handleSubmit() {
+  void _handleSubmit() async {
     if (_selectedBook == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -261,13 +274,62 @@ class _PostBookScreenState extends State<PostBookScreen> {
     }
 
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Book posted successfully!'),
-          backgroundColor: AppTheme.successGreen,
-        ),
-      );
-      Navigator.pop(context);
+      setState(() {
+        _isSubmitting = true;
+      });
+
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) {
+          throw Exception('User not authenticated');
+        }
+
+        // Get user data
+        final userData = await _firestoreService.getUserById(currentUser.uid);
+        
+        final book = Book(
+          id: '', // Firestore will generate this
+          title: _selectedBook!.title,
+          author: _selectedBook!.authorNames,
+          swapFor: _swapForController.text.isNotEmpty ? _swapForController.text : null,
+          condition: _selectedCondition,
+          ownerId: currentUser.uid,
+          ownerName: userData?.displayName ?? currentUser.displayName ?? 'Anonymous',
+          postedAt: DateTime.now(),
+          imageUrl: _selectedBook!.imageUrl,
+          isbn: _selectedBook!.isbn,
+          publisher: _selectedBook!.publisher,
+          publishedDate: _selectedBook!.publishedDate,
+          description: _selectedBook!.description,
+        );
+
+        await _firestoreService.postBook(book);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Book posted successfully!'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+        Navigator.pop(context, true);
+      } catch (e) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error posting book: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+        }
+      }
     }
   }
 }

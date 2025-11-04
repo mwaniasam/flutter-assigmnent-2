@@ -22,22 +22,26 @@ class ChatMessage {
 
 class ChatConversation {
   final String id;
+  final String chatRoomId;
   final String otherUserId;
   final String otherUserName;
   final String? otherUserAvatar;
-  final List<ChatMessage> messages;
+  final String bookId;
+  final ChatMessage? lastMessage;
   final DateTime lastMessageTime;
+  final int unreadCount;
+  final List<ChatMessage> messages;
 
   const ChatConversation({
     required this.id,
+    String? chatRoomId,
     required this.otherUserId,
     required this.otherUserName,
     this.otherUserAvatar,
-    required this.messages,
+    required this.bookId,
+    this.lastMessage,
     required this.lastMessageTime,
-  });
-
-  ChatMessage? get lastMessage => messages.isNotEmpty ? messages.last : null;
-  
-  int get unreadCount => messages.where((m) => !m.isRead && m.senderId == otherUserId).length;
+    this.unreadCount = 0,
+    this.messages = const [],
+  }) : chatRoomId = chatRoomId ?? id;
 }

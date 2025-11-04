@@ -3,6 +3,7 @@ import 'package:bookswap_app/config/app_theme.dart';
 import 'package:bookswap_app/models/book.dart';
 import 'package:bookswap_app/widgets/book_card.dart';
 import 'package:bookswap_app/screens/post_book_screen.dart';
+import 'package:bookswap_app/services/firestore_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,39 +13,102 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late List<Book> _books;
-
-  @override
-  void initState() {
-    super.initState();
-    _books = [];
-  }
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightGray,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Browse Listings'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
-            onPressed: () {
-              Navigator.push(
-                context,
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              
+              final result = await navigator.push(
                 MaterialPageRoute(
                   builder: (context) => const PostBookScreen(),
                 ),
               );
+              
+              if (result == true && mounted) {
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Book posted successfully!'),
+                    backgroundColor: AppTheme.successGreen,
+                  ),
+                );
+              }
             },
           ),
         ],
       ),
-      body: _books.isEmpty ? _buildEmptyState() : _buildBookList(),
+      body: StreamBuilder<List<Book>>(
+        stream: _firestoreService.getBooksStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 60, color: AppTheme.errorRed),
+                  const SizedBox(height: 16),
+                  Text('Error: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final books = snapshot.data ?? [];
+
+          if (books.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {});
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: books.length,
+              itemBuilder: (context, index) {
+                final book = books[index];
+                return BookCard(
+                  book: book,
+                  onTap: () {
+                    _showBookDetails(book);
+                  },
+                  onLike: () async {
+                    await _firestoreService.toggleBookLike(
+                      book.id,
+                      !book.isLiked,
+                    );
+                  },
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -52,55 +116,35 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(
             Icons.library_books_outlined,
             size: 80,
-            color: AppTheme.subtleGray.withValues(alpha: 0.5),
+            color: isDark 
+                ? AppTheme.darkSubtext.withValues(alpha: 0.5)
+                : AppTheme.subtleGray.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
             'No books available yet',
             style: AppTheme.heading2.copyWith(
-              color: AppTheme.subtleGray,
+              color: isDark ? AppTheme.darkSubtext : AppTheme.subtleGray,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Be the first to post a book!',
-            style: AppTheme.caption,
+            style: AppTheme.caption.copyWith(
+              color: isDark ? AppTheme.darkSubtext : AppTheme.subtleGray,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBookList() {
-    return RefreshIndicator(
-      onRefresh: () async {
-        await Future.delayed(const Duration(seconds: 1));
-        setState(() {
-          _books = [];
-        });
-      },
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: _books.length,
-        itemBuilder: (context, index) {
-          final book = _books[index];
-          return BookCard(
-            book: book,
-            onTap: () {
-              _showBookDetails(book);
-            },
-            onLike: () {
-              setState(() {
-                _books[index] = book.copyWith(isLiked: !book.isLiked);
-              });
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  void _showBookDetails(Book book) {
+  void _showBookDetails(Book book) async {
+    // Get owner info
+    final owner = await _firestoreService.getUserById(book.ownerId);
+    
+    if (!mounted) return;
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -116,6 +160,12 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             Text('by ${book.author}', style: AppTheme.caption),
             const SizedBox(height: 16),
+            if (owner != null) ...[
+              Text('Owner:', style: AppTheme.bodyText.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text(owner.name, style: AppTheme.bodyText),
+              const SizedBox(height: 16),
+            ],
             if (book.swapFor != null) ...[
               Text('Owner wants:', style: AppTheme.bodyText.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
@@ -125,9 +175,26 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Would navigate to chat
+                onPressed: () async {
+                  final navigator = Navigator.of(context);
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  
+                  navigator.pop();
+                  
+                  // Create or get chat room
+                  await _firestoreService.createOrGetChatRoom(
+                    book.ownerId,
+                    book.id,
+                  );
+                  
+                  if (!mounted) return;
+                  
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Chat started! Check your Chats tab.'),
+                      backgroundColor: AppTheme.successGreen,
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.chat_bubble_outline),
                 label: const Text('Start Chat'),

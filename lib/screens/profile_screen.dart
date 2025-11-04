@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:bookswap_app/config/app_theme.dart';
+import 'package:bookswap_app/providers/auth_provider.dart';
+import 'package:bookswap_app/providers/theme_provider.dart';
+import 'package:bookswap_app/services/firestore_service.dart';
+import 'package:bookswap_app/models/user_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -9,101 +14,138 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final FirestoreService _firestoreService = FirestoreService();
   bool _notificationReminders = true;
   bool _emailUpdates = true;
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    
     return Scaffold(
-      backgroundColor: AppTheme.lightGray,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Settings'),
       ),
-      body: ListView(
-        children: [
-          _buildProfileHeader(),
+      body: StreamBuilder<UserModel?>(
+        stream: _firestoreService.getCurrentUserStream(),
+        builder: (context, snapshot) {
+          final user = snapshot.data;
           
-          const SizedBox(height: 24),
-          
-          _buildSettingsSection(
-            title: 'Notifications',
+          return ListView(
             children: [
-              _buildSwitchTile(
-                title: 'Notification reminders',
-                value: _notificationReminders,
-                onChanged: (value) {
-                  setState(() {
-                    _notificationReminders = value;
-                  });
-                },
+              _buildProfileHeader(user),
+              
+              const SizedBox(height: 24),
+              
+              _buildSettingsSection(
+                title: 'Appearance',
+                children: [
+                  ListTile(
+                    title: const Text('Dark Mode', style: AppTheme.bodyText),
+                    subtitle: const Text('Toggle dark theme', style: AppTheme.caption),
+                    trailing: Switch(
+                      value: themeProvider.isDarkMode,
+                      onChanged: (value) {
+                        themeProvider.toggleTheme();
+                      },
+                      activeTrackColor: AppTheme.accentGold,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  ),
+                ],
               ),
-              _buildSwitchTile(
-                title: 'Email Updates',
-                value: _emailUpdates,
-                onChanged: (value) {
-                  setState(() {
-                    _emailUpdates = value;
-                  });
-                },
+              
+              const SizedBox(height: 16),
+              
+              _buildSettingsSection(
+                title: 'Notifications',
+                children: [
+                  _buildSwitchTile(
+                    title: 'Notification reminders',
+                    value: _notificationReminders,
+                    onChanged: (value) {
+                      setState(() {
+                        _notificationReminders = value;
+                      });
+                    },
+                  ),
+                  _buildSwitchTile(
+                    title: 'Email Updates',
+                    value: _emailUpdates,
+                    onChanged: (value) {
+                      setState(() {
+                        _emailUpdates = value;
+                      });
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          _buildSettingsSection(
-            title: 'App Information',
-            children: [
-              _buildInfoTile(
-                title: 'About',
-                onTap: () {
-                  _showAboutDialog();
-                },
+              
+              const SizedBox(height: 16),
+              
+              _buildSettingsSection(
+                title: 'App Information',
+                children: [
+                  _buildInfoTile(
+                    title: 'About',
+                    onTap: () {
+                      _showAboutDialog();
+                    },
+                  ),
+                  _buildInfoTile(
+                    title: 'Privacy Policy',
+                    onTap: () {
+                      // Would navigate to privacy policy
+                    },
+                  ),
+                  _buildInfoTile(
+                    title: 'Terms of Service',
+                    onTap: () {
+                      // Would navigate to terms
+                    },
+                  ),
+                ],
               ),
-              _buildInfoTile(
-                title: 'Privacy Policy',
-                onTap: () {
-                  // Would navigate to privacy policy
-                },
-              ),
-              _buildInfoTile(
-                title: 'Terms of Service',
-                onTap: () {
-                  // Would navigate to terms
-                },
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: OutlinedButton(
-              onPressed: () {
-                _showLogoutDialog();
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.errorRed,
-                side: const BorderSide(color: AppTheme.errorRed),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              
+              const SizedBox(height: 24),
+              
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: OutlinedButton(
+                  onPressed: () {
+                    _showLogoutDialog(authProvider);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.errorRed,
+                    side: const BorderSide(color: AppTheme.errorRed),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Log Out'),
                 ),
               ),
-              child: const Text('Log Out'),
-            ),
-          ),
-          
-          const SizedBox(height: 32),
-        ],
+              
+              const SizedBox(height: 32),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(UserModel? user) {
+    final displayName = user?.displayName ?? 'User';
+    final email = user?.email ?? 'user@email.com';
+    final initials = displayName.isNotEmpty 
+        ? displayName.split(' ').map((e) => e[0]).take(2).join().toUpperCase()
+        : 'U';
+    
     return Container(
-      color: AppTheme.cardBackground,
+      color: Theme.of(context).cardColor,
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
@@ -112,14 +154,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               CircleAvatar(
                 radius: 50,
                 backgroundColor: AppTheme.accentGold,
-                child: const Text(
-                  'JD',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryNavy,
-                  ),
-                ),
+                backgroundImage: user?.photoURL != null 
+                    ? NetworkImage(user!.photoURL!) 
+                    : null,
+                child: user?.photoURL == null 
+                    ? Text(
+                        initials,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryNavy,
+                        ),
+                      )
+                    : null,
               ),
               Positioned(
                 bottom: 0,
@@ -140,13 +187,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          const Text(
-            'John Doe',
-            style: AppTheme.heading2,
+          Text(
+            displayName,
+            style: AppTheme.heading2.copyWith(
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
-            'john.doe@university.edu',
+            email,
             style: AppTheme.caption,
           ),
         ],
@@ -235,7 +284,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showLogoutDialog() {
+  void _showLogoutDialog(AuthProvider authProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -247,8 +296,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              await authProvider.signOut();
             },
             style: TextButton.styleFrom(
               foregroundColor: AppTheme.errorRed,

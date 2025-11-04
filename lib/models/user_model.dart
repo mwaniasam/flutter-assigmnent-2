@@ -1,4 +1,5 @@
 class UserModel {
+  final String id;
   final String uid;
   final String email;
   final String displayName;
@@ -7,13 +8,17 @@ class UserModel {
   final bool emailVerified;
 
   const UserModel({
+    String? id,
     required this.uid,
     required this.email,
     required this.displayName,
     this.photoURL,
     required this.createdAt,
     this.emailVerified = false,
-  });
+  }) : id = id ?? uid;
+
+  // Alias for displayName for easier access
+  String get name => displayName;
 
   Map<String, dynamic> toMap() {
     return {
@@ -26,16 +31,23 @@ class UserModel {
     };
   }
 
+  Map<String, dynamic> toJson() => toMap();
+
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
+      id: map['id'],
       uid: map['uid'] ?? '',
       email: map['email'] ?? '',
       displayName: map['displayName'] ?? '',
       photoURL: map['photoURL'],
-      createdAt: DateTime.parse(map['createdAt']),
+      createdAt: map['createdAt'] is String
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
       emailVerified: map['emailVerified'] ?? false,
     );
   }
+
+  factory UserModel.fromJson(Map<String, dynamic> json) => UserModel.fromMap(json);
 
   UserModel copyWith({
     String? uid,

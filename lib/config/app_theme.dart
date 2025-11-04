@@ -12,6 +12,15 @@ class AppTheme {
   static const Color successGreen = Color(0xFF4CAF50);
   static const Color errorRed = Color(0xFFEF5350);
 
+  // Dark theme colors - Rich, modern dark palette
+  static const Color darkBackground = Color(0xFF0A0E27);
+  static const Color darkSurface = Color(0xFF1A1F3A);
+  static const Color darkCard = Color(0xFF252B48);
+  static const Color darkText = Color(0xFFE8E8F0);
+  static const Color darkSubtext = Color(0xFFA5A6B0);
+  static const Color darkBorder = Color(0xFF2D3350);
+  static const Color darkAccent = Color(0xFFFFD700); // Brighter gold for dark mode
+
   static const String fontFamily = 'Inter';
 
   static ThemeData get lightTheme {
@@ -92,6 +101,156 @@ class AppTheme {
         unselectedItemColor: Colors.white54,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
+      ),
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      fontFamily: fontFamily,
+      scaffoldBackgroundColor: darkBackground,
+      primaryColor: darkAccent,
+      brightness: Brightness.dark,
+      
+      colorScheme: const ColorScheme.dark(
+        primary: darkAccent,
+        secondary: darkAccent,
+        surface: darkSurface,
+        error: errorRed,
+        onPrimary: primaryNavy,
+        onSurface: darkText,
+        onSurfaceVariant: darkSubtext,
+        outline: darkBorder,
+      ),
+
+      appBarTheme: const AppBarTheme(
+        backgroundColor: darkSurface,
+        foregroundColor: darkText,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: darkText,
+          fontFamily: fontFamily,
+        ),
+        iconTheme: IconThemeData(color: darkText),
+      ),
+
+      cardTheme: CardThemeData(
+        color: darkCard,
+        elevation: 4,
+        shadowColor: Colors.black.withValues(alpha: 0.3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: darkBorder.withValues(alpha: 0.5), width: 1),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkCard,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: darkBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: darkBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: darkAccent, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        hintStyle: const TextStyle(color: darkSubtext),
+        labelStyle: const TextStyle(color: darkSubtext),
+      ),
+
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: darkAccent,
+          foregroundColor: primaryNavy,
+          elevation: 2,
+          shadowColor: darkAccent.withValues(alpha: 0.3),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            fontFamily: fontFamily,
+          ),
+        ),
+      ),
+
+      iconTheme: const IconThemeData(color: darkText),
+      
+      dividerTheme: DividerThemeData(
+        color: darkBorder.withValues(alpha: 0.5),
+        thickness: 1,
+      ),
+
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: darkSurface,
+        selectedItemColor: darkAccent,
+        unselectedItemColor: darkSubtext,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+        selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
+      ),
+      
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return darkAccent;
+          }
+          return darkSubtext;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return darkAccent.withValues(alpha: 0.5);
+          }
+          return darkBorder;
+        }),
+      ),
+      
+      chipTheme: ChipThemeData(
+        backgroundColor: darkCard,
+        selectedColor: darkAccent,
+        labelStyle: const TextStyle(color: darkText),
+        side: BorderSide(color: darkBorder),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      
+      dialogTheme: DialogThemeData(
+        backgroundColor: darkCard,
+        titleTextStyle: const TextStyle(
+          color: darkText,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        contentTextStyle: const TextStyle(
+          color: darkSubtext,
+          fontSize: 16,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+      
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: darkCard,
+        contentTextStyle: const TextStyle(color: darkText),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

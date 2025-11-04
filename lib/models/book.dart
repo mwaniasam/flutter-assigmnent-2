@@ -78,6 +78,49 @@ class Book {
       description: description ?? this.description,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'author': author,
+      'swapFor': swapFor,
+      'condition': condition.name,
+      'ownerId': ownerId,
+      'ownerName': ownerName,
+      'postedAt': postedAt.toIso8601String(),
+      'imageUrl': imageUrl,
+      'isbn': isbn,
+      'publisher': publisher,
+      'publishedDate': publishedDate,
+      'description': description,
+      'likedBy': isLiked ? [ownerId] : [],
+    };
+  }
+
+  factory Book.fromJson(Map<String, dynamic> json) {
+    return Book(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      author: json['author'] ?? '',
+      swapFor: json['swapFor'],
+      condition: BookCondition.values.firstWhere(
+        (e) => e.name == json['condition'],
+        orElse: () => BookCondition.used,
+      ),
+      ownerId: json['ownerId'] ?? '',
+      ownerName: json['ownerName'] ?? '',
+      postedAt: json['postedAt'] is String
+          ? DateTime.parse(json['postedAt'])
+          : DateTime.now(),
+      imageUrl: json['imageUrl'],
+      isLiked: (json['likedBy'] as List?)?.contains(json['currentUserId'] ?? '') ?? false,
+      isbn: json['isbn'],
+      publisher: json['publisher'],
+      publishedDate: json['publishedDate'],
+      description: json['description'],
+    );
+  }
 }
 
 enum BookCondition {

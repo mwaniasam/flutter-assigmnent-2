@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:bookswap_app/config/app_theme.dart';
 import 'package:bookswap_app/models/chat.dart';
 import 'package:bookswap_app/screens/chat_detail_screen.dart';
+import 'package:bookswap_app/services/firestore_service.dart';
 
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key});
@@ -11,26 +12,57 @@ class ChatsScreen extends StatefulWidget {
 }
 
 class _ChatsScreenState extends State<ChatsScreen> {
-  late List<ChatConversation> _conversations;
-
-  @override
-  void initState() {
-    super.initState();
-    _conversations = [];
-  }
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightGray,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Chats'),
       ),
-      body: _conversations.isEmpty ? _buildEmptyState() : _buildChatsList(),
+      body: StreamBuilder<List<ChatConversation>>(
+        stream: _firestoreService.getChatsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 60, color: AppTheme.errorRed),
+                  const SizedBox(height: 16),
+                  Text('Error: ${snapshot.error}'),
+                ],
+              ),
+            );
+          }
+
+          final conversations = snapshot.data ?? [];
+
+          if (conversations.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: conversations.length,
+            itemBuilder: (context, index) {
+              final conversation = conversations[index];
+              return _buildChatTile(conversation);
+            },
+          );
+        },
+      ),
     );
   }
 
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -38,33 +70,26 @@ class _ChatsScreenState extends State<ChatsScreen> {
           Icon(
             Icons.chat_bubble_outline,
             size: 80,
-            color: AppTheme.subtleGray.withValues(alpha: 0.5),
+            color: isDark 
+                ? AppTheme.darkSubtext.withValues(alpha: 0.5)
+                : AppTheme.subtleGray.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
             'No conversations yet',
             style: AppTheme.heading2.copyWith(
-              color: AppTheme.subtleGray,
+              color: isDark ? AppTheme.darkSubtext : AppTheme.subtleGray,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Start chatting to swap books!',
-            style: AppTheme.caption,
+            style: AppTheme.caption.copyWith(
+              color: isDark ? AppTheme.darkSubtext : AppTheme.subtleGray,
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildChatsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: _conversations.length,
-      itemBuilder: (context, index) {
-        final conversation = _conversations[index];
-        return _buildChatTile(conversation);
-      },
     );
   }
 
