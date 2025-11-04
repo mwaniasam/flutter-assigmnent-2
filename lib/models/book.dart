@@ -2,13 +2,17 @@ class Book {
   final String id;
   final String title;
   final String author;
-  final String? swapFor; // What the owner wants in exchange
+  final String? swapFor;
   final BookCondition condition;
   final String ownerId;
   final String ownerName;
   final DateTime postedAt;
   final String? imageUrl;
   final bool isLiked;
+  final String? isbn;
+  final String? publisher;
+  final String? publishedDate;
+  final String? description;
 
   const Book({
     required this.id,
@@ -21,6 +25,10 @@ class Book {
     required this.postedAt,
     this.imageUrl,
     this.isLiked = false,
+    this.isbn,
+    this.publisher,
+    this.publishedDate,
+    this.description,
   });
 
   String get timeAgo {
@@ -48,6 +56,10 @@ class Book {
     DateTime? postedAt,
     String? imageUrl,
     bool? isLiked,
+    String? isbn,
+    String? publisher,
+    String? publishedDate,
+    String? description,
   }) {
     return Book(
       id: id ?? this.id,
@@ -60,6 +72,10 @@ class Book {
       postedAt: postedAt ?? this.postedAt,
       imageUrl: imageUrl ?? this.imageUrl,
       isLiked: isLiked ?? this.isLiked,
+      isbn: isbn ?? this.isbn,
+      publisher: publisher ?? this.publisher,
+      publishedDate: publishedDate ?? this.publishedDate,
+      description: description ?? this.description,
     );
   }
 }
