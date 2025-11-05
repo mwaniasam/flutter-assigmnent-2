@@ -17,10 +17,12 @@ class BookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -35,31 +37,41 @@ class BookCard extends StatelessWidget {
                   children: [
                     Text(
                       book.title,
-                      style: AppTheme.heading2.copyWith(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppTheme.darkText : AppTheme.primaryNavy,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       book.author,
-                      style: AppTheme.caption,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDark ? AppTheme.darkSubtext : AppTheme.subtleGray,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    _buildConditionBadge(),
+                    _buildConditionBadge(isDark),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.access_time,
                           size: 14,
-                          color: AppTheme.subtleGray,
+                          color: isDark ? AppTheme.darkSubtext : AppTheme.subtleGray,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           book.timeAgo,
-                          style: AppTheme.caption.copyWith(fontSize: 12),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? AppTheme.darkSubtext : AppTheme.subtleGray,
+                          ),
                         ),
                       ],
                     ),
@@ -72,7 +84,9 @@ class BookCard extends StatelessWidget {
                   onPressed: onLike,
                   icon: Icon(
                     book.isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: book.isLiked ? Colors.red : AppTheme.subtleGray,
+                    color: book.isLiked 
+                        ? Colors.red 
+                        : (isDark ? AppTheme.darkSubtext : AppTheme.subtleGray),
                   ),
                 ),
             ],
@@ -126,35 +140,40 @@ class BookCard extends StatelessWidget {
     );
   }
 
-  Widget _buildConditionBadge() {
+  Widget _buildConditionBadge(bool isDark) {
     Color badgeColor;
     switch (book.condition) {
       case BookCondition.brandNew:
-        badgeColor = AppTheme.successGreen;
+        badgeColor = isDark ? AppTheme.darkAccent : AppTheme.successGreen;
         break;
       case BookCondition.likeNew:
-        badgeColor = AppTheme.accentGold;
+        badgeColor = isDark ? AppTheme.accentGold : AppTheme.accentGold;
         break;
       case BookCondition.good:
         badgeColor = Colors.blue;
         break;
       case BookCondition.used:
-        badgeColor = AppTheme.subtleGray;
+        badgeColor = isDark ? AppTheme.darkSubtext : AppTheme.subtleGray;
         break;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: badgeColor,
-        borderRadius: BorderRadius.circular(4),
+        color: badgeColor.withOpacity(isDark ? 0.3 : 0.2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: badgeColor,
+          width: 1.5,
+        ),
       ),
       child: Text(
         book.condition.displayName,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: badgeColor,
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
         ),
       ),
     );
