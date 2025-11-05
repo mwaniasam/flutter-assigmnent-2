@@ -26,7 +26,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Profile & Settings'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: AppTheme.errorRed),
+            tooltip: 'Logout',
+            onPressed: () {
+              _showLogoutDialog(authProvider);
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<UserModel?>(
         stream: _firestoreService.getCurrentUserStream(),
@@ -43,8 +52,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: 'Appearance',
                 children: [
                   ListTile(
-                    title: const Text('Dark Mode', style: AppTheme.bodyText),
-                    subtitle: const Text('Toggle dark theme', style: AppTheme.caption),
+                    title: Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Toggle dark theme',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      ),
+                    ),
                     trailing: Switch(
                       value: themeProvider.isDarkMode,
                       onChanged: (value) {
@@ -113,19 +134,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: OutlinedButton(
-                  onPressed: () {
-                    _showLogoutDialog(authProvider);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.errorRed,
-                    side: const BorderSide(color: AppTheme.errorRed),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Log Out'),
+                child: Text(
+                  'Tip: Tap the profile picture to change it!',
+                  style: AppTheme.caption.copyWith(fontStyle: FontStyle.italic),
+                  textAlign: TextAlign.center,
                 ),
               ),
               
@@ -137,9 +149,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showAvatarSelection() {
+    final List<String> avatars = [
+      '😊', '🎓', '📚', '🌟', '🚀', 
+      '🎨', '💡', '🏆', '🌈', '⚡'
+    ];
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Choose Your Avatar',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              GridView.builder(
+                shrinkWrap: true,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 5,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: avatars.length,
+                itemBuilder: (context, index) {
+                  final avatar = avatars[index];
+                  return GestureDetector(
+                    key: ValueKey('avatar_$index'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _updateAvatar(avatar);
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentGold.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.accentGold.withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          avatar,
+                          style: const TextStyle(fontSize: 32),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateAvatar(String emoji) async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.uid;
+      
+      if (userId == null) {
+        _showErrorSnackbar('User not authenticated');
+        return;
+      }
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Update Firestore with emoji as photoUrl
+      await _firestoreService.updateUserProfile(
+        photoUrl: emoji,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      
+      _showSuccessSnackbar('Avatar updated!');
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      _showErrorSnackbar('Failed to update avatar: $e');
+    }
+  }
+
+  void _showSuccessSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.successGreen,
+      ),
+    );
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.errorRed,
+      ),
+    );
+  }
+
   Widget _buildProfileHeader(UserModel? user) {
     final displayName = user?.displayName ?? 'User';
     final email = user?.email ?? 'user@email.com';
+    final photoUrl = user?.photoURL;
+    
+    // Check if photoUrl is an emoji (single character)
+    final bool isEmoji = photoUrl != null && photoUrl.length <= 2;
+    
     final initials = displayName.isNotEmpty 
         ? displayName.split(' ').map((e) => e[0]).take(2).join().toUpperCase()
         : 'U';
@@ -149,54 +295,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: AppTheme.accentGold,
-                backgroundImage: user?.photoURL != null 
-                    ? NetworkImage(user!.photoURL!) 
-                    : null,
-                child: user?.photoURL == null 
-                    ? Text(
-                        initials,
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryNavy,
+          GestureDetector(
+            onTap: () {
+              _showAvatarSelection();
+            },
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: AppTheme.accentGold,
+                  child: isEmoji 
+                      ? Text(
+                          photoUrl,
+                          style: const TextStyle(fontSize: 60),
+                        )
+                      : Text(
+                          initials,
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryNavy,
+                          ),
                         ),
-                      )
-                    : null,
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: AppTheme.accentGold,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.edit,
-                    size: 20,
-                    color: AppTheme.primaryNavy,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentGold,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.edit,
+                      size: 18,
+                      color: AppTheme.primaryNavy,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Text(
             displayName,
-            style: AppTheme.heading2.copyWith(
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             email,
-            style: AppTheme.caption,
+            style: TextStyle(
+              fontSize: 15,
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () {
+              _showAvatarSelection();
+            },
+            icon: const Icon(Icons.edit, size: 18),
+            label: const Text('Change Avatar'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.accentGold,
+            ),
           ),
         ],
       ),
@@ -207,6 +381,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required List<Widget> children,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -214,12 +390,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             title,
-            style: AppTheme.heading2.copyWith(fontSize: 16),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
           ),
         ),
         const SizedBox(height: 8),
         Container(
-          color: AppTheme.cardBackground,
+          color: isDark ? AppTheme.darkCard : AppTheme.cardBackground,
           child: Column(
             children: children,
           ),
@@ -234,7 +414,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required ValueChanged<bool> onChanged,
   }) {
     return SwitchListTile(
-      title: Text(title, style: AppTheme.bodyText),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+        ),
+      ),
       value: value,
       onChanged: onChanged,
       activeTrackColor: AppTheme.accentGold,
@@ -246,11 +432,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required VoidCallback onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return ListTile(
-      title: Text(title, style: AppTheme.bodyText),
-      trailing: const Icon(
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+        ),
+      ),
+      trailing: Icon(
         Icons.chevron_right,
-        color: AppTheme.subtleGray,
+        color: isDark ? AppTheme.darkSubtext : AppTheme.subtleGray,
       ),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
