@@ -96,6 +96,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
   Widget _buildChatTile(ChatConversation conversation) {
     final lastMessage = conversation.lastMessage;
     final hasUnread = conversation.unreadCount > 0;
+    final lastMessageText = lastMessage?.content ?? 'No messages yet';
+    final lastMessageTime = lastMessage != null 
+        ? conversation.lastMessageTime 
+        : DateTime.now();
 
     return Card(
       child: InkWell(
@@ -119,7 +123,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
                 radius: 28,
                 backgroundColor: AppTheme.accentGold,
                 child: Text(
-                  conversation.otherUserName[0].toUpperCase(),
+                  conversation.otherUserName.isNotEmpty 
+                      ? conversation.otherUserName[0].toUpperCase()
+                      : 'U',
                   style: const TextStyle(
                     color: AppTheme.primaryNavy,
                     fontSize: 20,
@@ -145,7 +151,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                         ),
                         if (lastMessage != null)
                           Text(
-                            _formatTime(conversation.lastMessageTime),
+                            _formatTime(lastMessageTime),
                             style: AppTheme.caption.copyWith(fontSize: 12),
                           ),
                       ],
@@ -155,7 +161,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            lastMessage?.content ?? 'No messages yet',
+                            lastMessageText,
                             style: AppTheme.caption.copyWith(
                               fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
                               color: hasUnread ? AppTheme.primaryNavy : AppTheme.subtleGray,
