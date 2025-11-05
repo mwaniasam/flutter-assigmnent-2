@@ -12,14 +12,15 @@ class AppTheme {
   static const Color successGreen = Color(0xFF4CAF50);
   static const Color errorRed = Color(0xFFEF5350);
 
-  // Dark theme colors - Rich, modern dark palette
-  static const Color darkBackground = Color(0xFF0A0E27);
-  static const Color darkSurface = Color(0xFF1A1F3A);
-  static const Color darkCard = Color(0xFF252B48);
-  static const Color darkText = Color(0xFFE8E8F0);
-  static const Color darkSubtext = Color(0xFFA5A6B0);
-  static const Color darkBorder = Color(0xFF2D3350);
-  static const Color darkAccent = Color(0xFFFFD700); // Brighter gold for dark mode
+  // Dark theme colors - Premium, vibrant dark palette
+  static const Color darkBackground = Color(0xFF0D0F1E);
+  static const Color darkSurface = Color(0xFF1C1F33);
+  static const Color darkCard = Color(0xFF272B42);
+  static const Color darkText = Color(0xFFF5F5F7);
+  static const Color darkSubtext = Color(0xFFB8BACC);
+  static const Color darkBorder = Color(0xFF373B52);
+  static const Color darkAccent = Color(0xFFFFD60A); // Vibrant gold
+  static const Color darkAccentLight = Color(0xFFFFF34E); // Lighter gold for highlights
 
   static const String fontFamily = 'Inter';
 
@@ -140,11 +141,11 @@ class AppTheme {
 
       cardTheme: CardThemeData(
         color: darkCard,
-        elevation: 4,
-        shadowColor: Colors.black.withValues(alpha: 0.3),
+        elevation: 8,
+        shadowColor: darkAccent.withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: darkBorder.withValues(alpha: 0.5), width: 1),
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: darkBorder, width: 1),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
@@ -172,17 +173,38 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: darkAccent,
-          foregroundColor: primaryNavy,
-          elevation: 2,
-          shadowColor: darkAccent.withValues(alpha: 0.3),
+          foregroundColor: darkBackground,
+          elevation: 4,
+          shadowColor: darkAccent.withValues(alpha: 0.4),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           textStyle: const TextStyle(
             fontSize: 16,
+            fontWeight: FontWeight.bold,
+            fontFamily: fontFamily,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: darkAccent,
+          textStyle: const TextStyle(
             fontWeight: FontWeight.w600,
             fontFamily: fontFamily,
+          ),
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: darkAccent,
+          side: const BorderSide(color: darkAccent, width: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
@@ -221,11 +243,13 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: darkCard,
         selectedColor: darkAccent,
-        labelStyle: const TextStyle(color: darkText),
-        side: BorderSide(color: darkBorder),
+        labelStyle: const TextStyle(color: darkText, fontWeight: FontWeight.w600),
+        secondaryLabelStyle: const TextStyle(color: darkBackground, fontWeight: FontWeight.bold),
+        side: const BorderSide(color: darkBorder, width: 1.5),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
         ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       
       dialogTheme: DialogThemeData(
@@ -246,11 +270,30 @@ class AppTheme {
       
       snackBarTheme: SnackBarThemeData(
         backgroundColor: darkCard,
-        contentTextStyle: const TextStyle(color: darkText),
+        contentTextStyle: const TextStyle(color: darkText, fontWeight: FontWeight.w500),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
         behavior: SnackBarBehavior.floating,
+        elevation: 8,
+      ),
+      
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+        displayMedium: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+        displaySmall: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+        headlineLarge: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+        headlineMedium: TextStyle(color: darkText, fontWeight: FontWeight.w600),
+        headlineSmall: TextStyle(color: darkText, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(color: darkText, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(color: darkText, fontWeight: FontWeight.w600),
+        titleSmall: TextStyle(color: darkText, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(color: darkText),
+        bodyMedium: TextStyle(color: darkText),
+        bodySmall: TextStyle(color: darkSubtext),
+        labelLarge: TextStyle(color: darkText, fontWeight: FontWeight.w600),
+        labelMedium: TextStyle(color: darkSubtext),
+        labelSmall: TextStyle(color: darkSubtext),
       ),
     );
   }
