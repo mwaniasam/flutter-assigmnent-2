@@ -42,7 +42,7 @@ class FirestoreService {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
     if (email != null) updates['email'] = email;
-    if (photoUrl != null) updates['photoUrl'] = photoUrl;
+    if (photoUrl != null) updates['photoURL'] = photoUrl; // Match UserModel field name
     updates['updatedAt'] = FieldValue.serverTimestamp();
 
     await _firestore.collection('users').doc(userId).update(updates);
@@ -74,6 +74,24 @@ class FirestoreService {
         data['id'] = doc.id;
         return Book.fromJson(data);
       }).toList();
+    });
+  }
+
+  Stream<List<Book>> getUserBooksStream(String userId) {
+    return _firestore
+        .collection('books')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+      final books = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return Book.fromJson(data);
+      }).toList();
+      
+      // Sort manually to avoid composite index requirement
+      books.sort((a, b) => b.postedAt.compareTo(a.postedAt));
+      return books;
     });
   }
 
@@ -155,7 +173,13 @@ class FirestoreService {
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final participants = List<String>.from(data['participants']);
-        final otherUserId = participants.firstWhere((id) => id != userId);
+        final otherUserId = participants.firstWhere(
+          (id) => id != userId,
+          orElse: () => '',
+        );
+        
+        // Skip if no other user found
+        if (otherUserId.isEmpty) continue;
 
         // Get other user's data
         final otherUser = await getUserById(otherUserId);
