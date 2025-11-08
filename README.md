@@ -2,7 +2,7 @@
 
 A full-featured Flutter mobile application for exchanging books between users, built with Firebase backend and real-time synchronization.
 
-## 🎯 Project Overview
+## Project Overview
 
 BookSwap is a social book exchange platform that allows users to:
 - Browse available books from other users
@@ -13,33 +13,33 @@ BookSwap is a social book exchange platform that allows users to:
 
 ## ✨ Features
 
-### 🔐 Authentication
+### Authentication
 - **Email/Password Authentication** with Firebase Auth
 - **Email Verification** with automatic refresh detection
 - **Google Sign-In** integration
 - Secure session management
 
-### 📖 Book Management (CRUD Operations)
+### Book Management (CRUD Operations)
 - **Create**: Post books with images, condition, and swap preferences
 - **Read**: Browse all available books with real-time updates
 - **Update**: Edit book details and images
 - **Delete**: Remove listings with swipe-to-delete gesture
 
-### 🔄 Swap System
+### Swap System
 - Send swap offers to book owners
 - Accept/Reject/Cancel offers with real-time status updates
 - Separate tabs for Sent and Received offers
 - Badge notifications for pending offers
 - Automatic chat room creation on swap acceptance
 
-### 💬 Real-Time Chat
+### Real-Time Chat
 - Firebase Firestore real-time messaging
 - Instant message synchronization
 - Message timestamps and read status
 - Chat initiated from book details or accepted swaps
 - NO mock data - fully integrated with Firebase
 
-### 🎨 UI/UX Features
+### UI/UX Features
 - **Material Design 3** implementation
 - **Dark Mode** support with smooth transitions
 - **5-Screen Bottom Navigation**:
@@ -53,7 +53,7 @@ BookSwap is a social book exchange platform that allows users to:
 - Pull-to-refresh on all list screens
 - Responsive cards and modals
 
-### 🖼️ Media Handling
+### Media Handling
 - Firebase Storage integration
 - Image upload with compression
 - Cached network images for performance
@@ -118,7 +118,7 @@ User profile management:
 - Email updates settings
 - Logout functionality
 
-## 🛠️ Tech Stack
+## � Tech Stack
 
 ### Frontend
 - **Flutter 3.35.3** - Cross-platform mobile framework
@@ -155,7 +155,7 @@ dependencies:
   google_sign_in: ^6.2.2
 ```
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 lib/
@@ -203,7 +203,7 @@ lib/
     └── book_card.dart                # Reusable book card component
 ```
 
-## 🔥 Firebase Configuration
+## Firebase Configuration
 
 ### Firestore Collections
 
@@ -293,7 +293,7 @@ lib/
 - File size limited to 5MB
 - Only image file types allowed
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Flutter SDK 3.35.3 or higher
@@ -341,7 +341,7 @@ flutter run -d <IP>:<PORT>
 flutter build apk --release
 ```
 
-## 📋 Features Checklist
+## Features Checklist
 
 ### Authentication
 - [x] Email/Password signup
@@ -388,7 +388,7 @@ flutter build apk --release
 - [x] Error handling
 - [x] Responsive design
 
-## 🎓 Project Requirements Met
+## Project Requirements Met
 
 ✅ **CRUD Operations**: Complete Create, Read, Update, Delete for books  
 ✅ **Firebase Integration**: Auth, Firestore, Storage fully integrated  
@@ -401,13 +401,13 @@ flutter build apk --release
 ✅ **Professional UI**: Material Design 3 with dark mode  
 ✅ **Error Handling**: Try-catch blocks and user feedback  
 
-## 🐛 Known Issues & Limitations
+## Known Issues & Limitations
 
 1. **Composite Indexes**: Some complex queries removed to avoid index requirements (e.g., unread message count)
 2. **Dark Mode**: Minor TextStyle interpolation warning (non-blocking)
 3. **Performance**: Large image uploads may take time on slow networks
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 - [ ] Add book search and filters
 - [ ] Implement user ratings/reviews
@@ -418,17 +418,17 @@ flutter build apk --release
 - [ ] Add location-based filtering
 - [ ] Support in-app notifications
 
-## 📝 License
+## License
 
 This project is created for educational purposes 
 
-## 👤 Author
+## Author
 
 **Samuel Mwania**
 - GitHub: [@mwaniasam](https://github.com/mwaniasam)
 - Email: sirerastusmawia@gmail.com
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Flutter & Firebase documentation
 - Material Design 3 guidelines
@@ -437,4 +437,4 @@ This project is created for educational purposes
 
 ---
 
-**Built with ❤️ using Flutter 3.35.3**
+Built with Flutter 3.35.3
