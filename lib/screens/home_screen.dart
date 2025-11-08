@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:bookswap_app/config/app_theme.dart';
 import 'package:bookswap_app/models/book.dart';
 import 'package:bookswap_app/widgets/book_card.dart';
 import 'package:bookswap_app/screens/post_book_screen.dart';
 import 'package:bookswap_app/services/firestore_service.dart';
+import 'package:bookswap_app/providers/auth_provider.dart';
+import 'package:bookswap_app/providers/swap_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -140,6 +143,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showBookDetails(Book book) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.user?.uid;
+    final isOwnBook = currentUserId == book.ownerId;
+    
     // Get owner info
     final owner = await _firestoreService.getUserById(book.ownerId);
     
@@ -166,42 +173,138 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(owner.name, style: AppTheme.bodyText),
               const SizedBox(height: 16),
             ],
+            Text('Condition:', style: AppTheme.bodyText.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(book.condition.displayName, style: AppTheme.bodyText),
+            const SizedBox(height: 16),
             if (book.swapFor != null) ...[
               Text('Owner wants:', style: AppTheme.bodyText.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(book.swapFor!, style: AppTheme.bodyText),
               const SizedBox(height: 16),
             ],
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final navigator = Navigator.of(context);
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                  
-                  navigator.pop();
-                  
-                  // Create or get chat room
-                  await _firestoreService.createOrGetChatRoom(
-                    book.ownerId,
-                    book.id,
-                  );
-                  
-                  if (!mounted) return;
-                  
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Chat started! Check your Chats tab.'),
-                      backgroundColor: AppTheme.successGreen,
+            if (!isOwnBook) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final navigator = Navigator.of(context);
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
+                        
+                        navigator.pop();
+                        
+                        // Create or get chat room
+                        await _firestoreService.createOrGetChatRoom(
+                          book.ownerId,
+                          book.id,
+                        );
+                        
+                        if (!mounted) return;
+                        
+                        scaffoldMessenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Chat started! Check your Chats tab.'),
+                            backgroundColor: AppTheme.successGreen,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Chat'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.accentGold,
+                      ),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.chat_bubble_outline),
-                label: const Text('Start Chat'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showSwapOfferDialog(book, owner?.name ?? 'Owner');
+                      },
+                      icon: const Icon(Icons.swap_horiz),
+                      label: const Text('Swap'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentGold,
+                        foregroundColor: AppTheme.primaryNavy,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSwapOfferDialog(Book book, String ownerName) {
+    final messageController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Initiate Swap Offer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Send a swap offer for "${book.title}" to $ownerName',
+              style: AppTheme.bodyText,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: messageController,
+              decoration: const InputDecoration(
+                hintText: 'Add a message (optional)',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final swapProvider = Provider.of<SwapProvider>(context, listen: false);
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              
+              navigator.pop();
+              
+              final success = await swapProvider.createSwapOffer(
+                bookId: book.id,
+                bookTitle: book.title,
+                bookAuthor: book.author,
+                bookImageUrl: book.imageUrl,
+                receiverId: book.ownerId,
+                receiverName: ownerName,
+                message: messageController.text.isNotEmpty ? messageController.text : null,
+              );
+              
+              if (!mounted) return;
+              
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    success 
+                        ? 'Swap offer sent! Check My Offers tab.' 
+                        : 'Failed to send swap offer',
+                  ),
+                  backgroundColor: success ? AppTheme.successGreen : AppTheme.errorRed,
+                ),
+              );
+            },
+            child: const Text('Send Offer'),
+          ),
+        ],
       ),
     );
   }

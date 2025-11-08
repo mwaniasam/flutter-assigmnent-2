@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:bookswap_app/widgets/custom_bottom_nav_bar.dart';
 import 'package:bookswap_app/screens/home_screen.dart';
 import 'package:bookswap_app/screens/my_listings_screen.dart';
+import 'package:bookswap_app/screens/my_offers_screen.dart';
 import 'package:bookswap_app/screens/chats_screen.dart';
 import 'package:bookswap_app/screens/profile_screen.dart';
 
@@ -18,6 +19,7 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<Widget> _screens = const [
     HomeScreen(),
     MyListingsScreen(),
+    MyOffersScreen(),
     ChatsScreen(),
     ProfileScreen(),
   ];

@@ -4,6 +4,7 @@ import 'package:bookswap_app/config/app_theme.dart';
 import 'package:bookswap_app/models/book.dart';
 import 'package:bookswap_app/widgets/book_card.dart';
 import 'package:bookswap_app/screens/post_book_screen.dart';
+import 'package:bookswap_app/screens/edit_book_screen.dart';
 import 'package:bookswap_app/services/firestore_service.dart';
 import 'package:bookswap_app/providers/auth_provider.dart';
 
@@ -242,8 +243,23 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit listing'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditBookScreen(book: book),
+                  ),
+                );
+                
+                if (result == true && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Book updated successfully!'),
+                      backgroundColor: AppTheme.successGreen,
+                    ),
+                  );
+                }
               },
             ),
             ListTile(
@@ -251,6 +267,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
               title: const Text('View details'),
               onTap: () {
                 Navigator.pop(context);
+                _showBookDetails(book);
               },
             ),
             ListTile(
@@ -262,10 +279,72 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 'Delete listing',
                 style: TextStyle(color: AppTheme.errorRed),
               ),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
+                final confirm = await _confirmDelete(context);
+                if (confirm) {
+                  try {
+                    await _firestoreService.deleteBook(book.id);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${book.title} deleted'),
+                          backgroundColor: AppTheme.successGreen,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error deleting book: $e'),
+                          backgroundColor: AppTheme.errorRed,
+                        ),
+                      );
+                    }
+                  }
+                }
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBookDetails(Book book) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(book.title, style: AppTheme.heading2),
+            const SizedBox(height: 8),
+            Text('by ${book.author}', style: AppTheme.caption),
+            const SizedBox(height: 16),
+            Text('Condition:', style: AppTheme.bodyText.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(book.condition.displayName, style: AppTheme.bodyText),
+            const SizedBox(height: 16),
+            if (book.swapFor != null) ...[
+              Text('Want to swap for:', style: AppTheme.bodyText.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text(book.swapFor!, style: AppTheme.bodyText),
+              const SizedBox(height: 16),
+            ],
+            if (book.description != null) ...[
+              Text('Description:', style: AppTheme.bodyText.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text(book.description!, style: AppTheme.bodyText),
+              const SizedBox(height: 16),
+            ],
+            Text('Posted: ${book.timeAgo}', style: AppTheme.caption),
           ],
         ),
       ),

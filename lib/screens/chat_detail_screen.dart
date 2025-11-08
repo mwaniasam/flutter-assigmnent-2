@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bookswap_app/config/app_theme.dart';
 import 'package:bookswap_app/models/chat.dart';
+import 'package:bookswap_app/services/firestore_service.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final ChatConversation conversation;
@@ -17,18 +19,8 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  late List<ChatMessage> _messages;
-
-  @override
-  void initState() {
-    super.initState();
-    _messages = List.from(widget.conversation.messages);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
-    });
-  }
+  final _firestoreService = FirestoreService();
+  final _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void dispose() {
@@ -37,10 +29,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     super.dispose();
   }
 
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: AppTheme.lightGray,
+      backgroundColor: isDark ? AppTheme.darkBackground : AppTheme.lightGray,
       appBar: AppBar(
         title: Row(
           children: [
@@ -57,25 +65,59 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            Text(widget.conversation.otherUserName),
+            Expanded(
+              child: Text(
+                widget.conversation.otherUserName,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: _messages.isEmpty
-                ? _buildEmptyState()
-                : _buildMessagesList(),
+            child: StreamBuilder<List<ChatMessage>>(
+              stream: _firestoreService.getMessagesStream(widget.conversation.chatRoomId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 60, color: AppTheme.errorRed),
+                        const SizedBox(height: 16),
+                        Text('Error loading messages'),
+                        const SizedBox(height: 8),
+                        Text(
+                          snapshot.error.toString(),
+                          style: AppTheme.caption,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final messages = snapshot.data ?? [];
+
+                if (messages.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                // Auto-scroll to bottom on new messages
+                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+                return _buildMessagesList(messages, isDark);
+              },
+            ),
           ),
           
-          _buildMessageInput(),
+          _buildMessageInput(isDark),
         ],
       ),
     );
@@ -83,28 +125,42 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Text(
-        'Start the conversation!',
-        style: AppTheme.caption,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 60,
+            color: AppTheme.subtleGray.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Start the conversation!',
+            style: AppTheme.caption,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMessagesList() {
+  Widget _buildMessagesList(List<ChatMessage> messages, bool isDark) {
+    // Reverse to show oldest first (messages stream is ordered descending)
+    final reversedMessages = messages.reversed.toList();
+    
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: _messages.length,
+      itemCount: reversedMessages.length,
       itemBuilder: (context, index) {
-        final message = _messages[index];
-        final isMe = message.senderId == 'currentUser';
+        final message = reversedMessages[index];
+        final isMe = message.senderId == _currentUserId;
         final showDate = index == 0 || 
-            !_isSameDay(_messages[index - 1].timestamp, message.timestamp);
+            !_isSameDay(reversedMessages[index - 1].timestamp, message.timestamp);
 
         return Column(
           children: [
             if (showDate) _buildDateDivider(message.timestamp),
-            _buildMessageBubble(message, isMe),
+            _buildMessageBubble(message, isMe, isDark),
           ],
         );
       },
@@ -121,7 +177,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message, bool isMe) {
+  Widget _buildMessageBubble(ChatMessage message, bool isMe, bool isDark) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -131,7 +187,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           maxWidth: MediaQuery.of(context).size.width * 0.7,
         ),
         decoration: BoxDecoration(
-          color: isMe ? AppTheme.accentGold : AppTheme.primaryNavy,
+          color: isMe ? AppTheme.accentGold : (isDark ? AppTheme.darkCard : AppTheme.primaryNavy),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -165,16 +221,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Widget _buildMessageInput() {
+  Widget _buildMessageInput(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkCard : Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
             blurRadius: 4,
-            offset: Offset(0, -2),
+            offset: const Offset(0, -2),
           ),
         ],
       ),
@@ -185,10 +241,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               child: TextField(
                 controller: _messageController,
                 decoration: InputDecoration(
-                  hintText: 'Message',
+                  hintText: 'Type a message...',
                   hintStyle: AppTheme.caption,
                   filled: true,
-                  fillColor: AppTheme.lightGray,
+                  fillColor: isDark ? AppTheme.darkBackground : AppTheme.lightGray,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
@@ -199,6 +255,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ),
                 ),
                 textCapitalization: TextCapitalization.sentences,
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
               ),
             ),
             const SizedBox(width: 12),
@@ -219,31 +277,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
-    setState(() {
-      _messages.add(
-        ChatMessage(
-          id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-          senderId: 'currentUser',
-          content: _messageController.text.trim(),
-          timestamp: DateTime.now(),
-          isRead: true,
-        ),
-      );
-      _messageController.clear();
-    });
+    final content = _messageController.text.trim();
+    _messageController.clear();
 
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+    try {
+      print('Sending message to chatRoom: ${widget.conversation.chatRoomId}');
+      await _firestoreService.sendMessage(
+        widget.conversation.chatRoomId,
+        content,
+      );
+      print('Message sent successfully');
+      
+      // Scroll to bottom after sending
+      _scrollToBottom();
+    } catch (e, stackTrace) {
+      print('Error sending message: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send message: ${e.toString()}'),
+            backgroundColor: AppTheme.errorRed,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
-    });
+    }
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
