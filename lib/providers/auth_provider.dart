@@ -100,6 +100,23 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshUser() async {
+    try {
+      // Reload the current user from Firebase
+      await _user?.reload();
+      // Get the updated user object
+      _user = FirebaseAuth.instance.currentUser;
+      // Update user model if needed
+      if (_user != null) {
+        _userModel = await _authService.getUserData(_user!.uid);
+      }
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       _setLoading(true);
