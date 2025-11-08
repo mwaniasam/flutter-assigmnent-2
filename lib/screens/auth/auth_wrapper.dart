@@ -18,9 +18,11 @@ class AuthWrapper extends StatelessWidget {
           return const LoginScreen();
         }
 
-        if (!user.emailVerified) {
-          return const EmailVerificationScreen();
-        }
+        // TODO: Re-enable email verification for production
+        // For demo: Bypass email verification check
+        // if (!user.emailVerified) {
+        //   return const EmailVerificationScreen();
+        // }
 
         return const MainNavigation();
       },

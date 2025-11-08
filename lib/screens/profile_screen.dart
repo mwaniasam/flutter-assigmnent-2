@@ -367,9 +367,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _showAvatarSelection();
             },
             icon: const Icon(Icons.edit, size: 18),
-            label: const Text('Change Avatar'),
+            label: const Text(
+              'Change Avatar',
+              style: TextStyle(inherit: false),
+            ),
             style: TextButton.styleFrom(
               foregroundColor: AppTheme.accentGold,
+              textStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                inherit: false,
+              ),
             ),
           ),
         ],

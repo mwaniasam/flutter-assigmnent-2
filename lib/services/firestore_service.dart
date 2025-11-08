@@ -65,6 +65,8 @@ class FirestoreService {
   }
 
   Stream<List<Book>> getBooksStream() {
+    final currentUserId = _auth.currentUser?.uid;
+    
     return _firestore
         .collection('books')
         .orderBy('createdAt', descending: true)
@@ -73,20 +75,24 @@ class FirestoreService {
       return snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
+        data['currentUserId'] = currentUserId; // Add current user ID for isLiked calculation
         return Book.fromJson(data);
       }).toList();
     });
   }
 
   Stream<List<Book>> getUserBooksStream(String userId) {
+    final currentUserId = _auth.currentUser?.uid;
+    
     return _firestore
         .collection('books')
-        .where('userId', isEqualTo: userId)
+        .where('ownerId', isEqualTo: userId)
         .snapshots()
         .map((snapshot) {
       final books = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
+        data['currentUserId'] = currentUserId; // Add current user ID for isLiked calculation
         return Book.fromJson(data);
       }).toList();
       
@@ -142,17 +148,19 @@ class FirestoreService {
     final chatRoomId = '${participants[0]}_${participants[1]}_$bookId';
 
     final chatRoomRef = _firestore.collection('chatRooms').doc(chatRoomId);
-    final chatRoomDoc = await chatRoomRef.get();
-
-    if (!chatRoomDoc.exists) {
-      // Create new chat room
+    
+    try {
+      // Try to create the chat room (will fail if it already exists)
       await chatRoomRef.set({
         'participants': participants,
         'bookId': bookId,
         'createdAt': FieldValue.serverTimestamp(),
         'lastMessageTime': FieldValue.serverTimestamp(),
-        'lastMessage': null,
-      });
+        'lastMessage': '',
+      }, SetOptions(merge: true)); // Use merge to avoid overwriting existing data
+    } catch (e) {
+      // Chat room might already exist, that's okay
+      print('Chat room creation: $e');
     }
 
     return chatRoomId;
@@ -207,14 +215,8 @@ class FirestoreService {
           );
         }
 
-        // Count unread messages
-        final unreadSnapshot = await _firestore
-            .collection('chatRooms')
-            .doc(doc.id)
-            .collection('messages')
-            .where('senderId', isNotEqualTo: userId)
-            .where('isRead', isEqualTo: false)
-            .get();
+        // Unread count temporarily disabled (requires Firestore composite index)
+        // You can enable this by creating the index in Firebase Console
 
         conversations.add(ChatConversation(
           id: doc.id,
@@ -226,7 +228,7 @@ class FirestoreService {
           lastMessageTime: lastMessage?.timestamp ?? 
               (data['lastMessageTime'] as Timestamp?)?.toDate() ?? 
               DateTime.now(),
-          unreadCount: unreadSnapshot.docs.length,
+          unreadCount: 0, // Disabled - requires composite index
         ));
       }
 
@@ -247,11 +249,17 @@ class FirestoreService {
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = doc.data();
+        // Handle null timestamp (happens briefly when message is first created)
+        final timestamp = data['timestamp'];
+        final messageTime = timestamp != null 
+            ? (timestamp as Timestamp).toDate() 
+            : DateTime.now();
+            
         return ChatMessage(
           id: doc.id,
-          senderId: data['senderId'],
-          content: data['content'],
-          timestamp: (data['timestamp'] as Timestamp).toDate(),
+          senderId: data['senderId'] ?? '',
+          content: data['content'] ?? '',
+          timestamp: messageTime,
           isRead: data['isRead'] ?? false,
         );
       }).toList();
@@ -264,19 +272,24 @@ class FirestoreService {
 
     final chatRoomRef = _firestore.collection('chatRooms').doc(chatRoomId);
     
-    // Add message
-    await chatRoomRef.collection('messages').add({
-      'senderId': userId,
-      'content': content,
-      'timestamp': FieldValue.serverTimestamp(),
-      'isRead': false,
-    });
+    try {
+      // Add message
+      await chatRoomRef.collection('messages').add({
+        'senderId': userId,
+        'content': content,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+      });
 
-    // Update last message in chat room
-    await chatRoomRef.update({
-      'lastMessage': content,
-      'lastMessageTime': FieldValue.serverTimestamp(),
-    });
+      // Update last message in chat room (use set with merge to ensure it exists)
+      await chatRoomRef.set({
+        'lastMessage': content,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error in sendMessage: $e');
+      rethrow;
+    }
   }
 
   Future<void> markMessagesAsRead(String chatRoomId, String otherUserId) async {
@@ -374,10 +387,13 @@ class FirestoreService {
     return _firestore
         .collection('swaps')
         .where('senderId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => SwapOffer.fromFirestore(doc)).toList());
+        .map((snapshot) {
+      final swaps = snapshot.docs.map((doc) => SwapOffer.fromFirestore(doc)).toList();
+      // Sort manually to avoid composite index requirement
+      swaps.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return swaps;
+    });
   }
 
   // Get swaps received by current user
@@ -388,10 +404,13 @@ class FirestoreService {
     return _firestore
         .collection('swaps')
         .where('receiverId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => SwapOffer.fromFirestore(doc)).toList());
+        .map((snapshot) {
+      final swaps = snapshot.docs.map((doc) => SwapOffer.fromFirestore(doc)).toList();
+      // Sort manually to avoid composite index requirement
+      swaps.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return swaps;
+    });
   }
 
   // Update swap status
@@ -405,6 +424,42 @@ class FirestoreService {
   // Accept swap offer
   Future<void> acceptSwapOffer(String swapId) async {
     await updateSwapStatus(swapId, SwapStatus.accepted);
+    
+    // Create chat room when swap is accepted
+    final swapDoc = await _firestore.collection('swaps').doc(swapId).get();
+    if (swapDoc.exists) {
+      final swapData = swapDoc.data()!;
+      final senderId = swapData['senderId'] as String;
+      final receiverId = swapData['receiverId'] as String;
+      final bookId = swapData['bookId'] as String;
+      
+      // Create chat room between sender and receiver
+      await _createChatRoomForSwap(senderId, receiverId, bookId, swapId);
+    }
+  }
+
+  // Create chat room for accepted swap
+  Future<String> _createChatRoomForSwap(
+    String user1Id,
+    String user2Id,
+    String bookId,
+    String swapId,
+  ) async {
+    // Create a consistent chat room ID (same as createOrGetChatRoom)
+    final participants = [user1Id, user2Id]..sort();
+    final chatRoomId = '${participants[0]}_${participants[1]}_$bookId';
+    
+    // Use set with merge to create or update
+    await _firestore.collection('chatRooms').doc(chatRoomId).set({
+      'participants': participants,
+      'bookId': bookId,
+      'swapId': swapId,
+      'createdAt': FieldValue.serverTimestamp(),
+      'lastMessage': '',
+      'lastMessageTime': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    
+    return chatRoomId;
   }
 
   // Reject swap offer

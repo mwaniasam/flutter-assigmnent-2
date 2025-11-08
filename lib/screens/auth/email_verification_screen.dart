@@ -13,6 +13,7 @@ class EmailVerificationScreen extends StatefulWidget {
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Timer? _timer;
+  Timer? _checkTimer;
   bool _canResend = false;
   int _resendCountdown = 60;
 
@@ -26,6 +27,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _checkTimer?.cancel();
     super.dispose();
   }
 
@@ -50,14 +52,27 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   void _checkEmailVerification() {
-    Timer.periodic(const Duration(seconds: 3), (timer) async {
+    _checkTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // Reload user from Firebase
       await authProvider.user?.reload();
       
+      // Get fresh user data
+      await authProvider.refreshUser();
+      
+      // Check if email is verified
       if (authProvider.user?.emailVerified ?? false) {
         timer.cancel();
         if (mounted) {
-          // Email verified, navigation will be handled by auth state
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email verified successfully! ✅'),
+              backgroundColor: AppTheme.successGreen,
+              duration: Duration(seconds: 2),
+            ),
+          );
         }
       }
     });
@@ -169,6 +184,29 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
+                        onPressed: () => _checkVerificationManually(),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text(
+                          'I\'ve Verified My Email',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentGold,
+                          foregroundColor: AppTheme.primaryNavy,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
                         onPressed: _canResend ? _resendEmail : null,
                         icon: const Icon(Icons.refresh),
                         label: Text(
@@ -180,7 +218,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        style: ElevatedButton.styleFrom(
+                        style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -230,6 +268,71 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         const SnackBar(
           content: Text('Failed to send email. Please try again.'),
           backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _checkVerificationManually() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Show loading indicator
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Checking verification status...'),
+          ],
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      // Reload user from Firebase
+      await authProvider.user?.reload();
+      
+      // Refresh the auth provider
+      await authProvider.refreshUser();
+      
+      if (!mounted) return;
+      
+      // Check if email is now verified
+      if (authProvider.user?.emailVerified ?? false) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Email verified successfully!'),
+            backgroundColor: AppTheme.successGreen,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        // Navigation will be handled automatically by AuthWrapper
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Email not verified yet. Please check your inbox and click the verification link.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error checking verification: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
         ),
       );
     }
