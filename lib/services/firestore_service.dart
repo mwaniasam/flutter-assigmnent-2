@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bookswap_app/models/book.dart';
 import 'package:bookswap_app/models/chat.dart';
 import 'package:bookswap_app/models/user_model.dart';
+import 'package:bookswap_app/models/swap.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -294,5 +295,140 @@ class FirestoreService {
       batch.update(doc.reference, {'isRead': true});
     }
     await batch.commit();
+  }
+
+  // ==================== SWAP OFFERS ====================
+
+  // Create a new swap offer
+  Future<String> createSwapOffer({
+    required String bookId,
+    required String bookTitle,
+    required String bookAuthor,
+    String? bookImageUrl,
+    required String receiverId,
+    required String receiverName,
+    String? message,
+  }) async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) throw Exception('User not authenticated');
+
+    final user = await getUserById(userId);
+    if (user == null) throw Exception('User not found');
+
+    final swap = SwapOffer(
+      id: '', // Will be set by Firestore
+      bookId: bookId,
+      bookTitle: bookTitle,
+      bookAuthor: bookAuthor,
+      bookImageUrl: bookImageUrl,
+      senderId: userId,
+      senderName: user.displayName,
+      receiverId: receiverId,
+      receiverName: receiverName,
+      status: SwapStatus.pending,
+      createdAt: DateTime.now(),
+      message: message,
+    );
+
+    final docRef = await _firestore.collection('swaps').add(swap.toFirestore());
+    return docRef.id;
+  }
+
+  // Get all swap offers (sent and received)
+  Stream<List<SwapOffer>> getSwapOffersStream() {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return Stream.value([]);
+
+    return _firestore
+        .collection('swaps')
+        .where('senderId', isEqualTo: userId)
+        .snapshots()
+        .asyncMap((senderSnapshot) async {
+      // Get swaps where user is sender
+      final senderSwaps = senderSnapshot.docs
+          .map((doc) => SwapOffer.fromFirestore(doc))
+          .toList();
+
+      // Get swaps where user is receiver
+      final receiverSnapshot = await _firestore
+          .collection('swaps')
+          .where('receiverId', isEqualTo: userId)
+          .get();
+
+      final receiverSwaps = receiverSnapshot.docs
+          .map((doc) => SwapOffer.fromFirestore(doc))
+          .toList();
+
+      // Combine and sort by date
+      final allSwaps = [...senderSwaps, ...receiverSwaps];
+      allSwaps.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return allSwaps;
+    });
+  }
+
+  // Get swaps sent by current user
+  Stream<List<SwapOffer>> getSentSwapsStream() {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return Stream.value([]);
+
+    return _firestore
+        .collection('swaps')
+        .where('senderId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => SwapOffer.fromFirestore(doc)).toList());
+  }
+
+  // Get swaps received by current user
+  Stream<List<SwapOffer>> getReceivedSwapsStream() {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return Stream.value([]);
+
+    return _firestore
+        .collection('swaps')
+        .where('receiverId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => SwapOffer.fromFirestore(doc)).toList());
+  }
+
+  // Update swap status
+  Future<void> updateSwapStatus(String swapId, SwapStatus status) async {
+    await _firestore.collection('swaps').doc(swapId).update({
+      'status': status.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Accept swap offer
+  Future<void> acceptSwapOffer(String swapId) async {
+    await updateSwapStatus(swapId, SwapStatus.accepted);
+  }
+
+  // Reject swap offer
+  Future<void> rejectSwapOffer(String swapId) async {
+    await updateSwapStatus(swapId, SwapStatus.rejected);
+  }
+
+  // Cancel swap offer (by sender)
+  Future<void> cancelSwapOffer(String swapId) async {
+    await updateSwapStatus(swapId, SwapStatus.cancelled);
+  }
+
+  // Delete swap offer
+  Future<void> deleteSwapOffer(String swapId) async {
+    await _firestore.collection('swaps').doc(swapId).delete();
+  }
+
+  // Get swap offers for a specific book
+  Stream<List<SwapOffer>> getSwapsForBook(String bookId) {
+    return _firestore
+        .collection('swaps')
+        .where('bookId', isEqualTo: bookId)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => SwapOffer.fromFirestore(doc)).toList());
   }
 }
