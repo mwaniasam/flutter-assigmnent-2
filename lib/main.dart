@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:bookswap_app/config/app_theme.dart';
 import 'package:bookswap_app/providers/auth_provider.dart';
 import 'package:bookswap_app/providers/theme_provider.dart';
+import 'package:bookswap_app/providers/book_provider.dart';
+import 'package:bookswap_app/providers/swap_provider.dart';
 import 'package:bookswap_app/screens/splash_screen.dart';
 import 'firebase_options.dart';
 
@@ -24,6 +26,8 @@ class BookSwapApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => BookProvider()),
+        ChangeNotifierProvider(create: (_) => SwapProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
